@@ -1,0 +1,122 @@
+anti-cheat+adonis bypass written by @d11voqii
+
+local Context = game:GetService('ScriptContext')
+local Player = game:GetService'Players'.LocalPlayer
+local Mt = getrawmetatable(game)
+local __namecall = Mt.__namecall
+local Template = "Client<table> at: %s\nClient.__index<function> at: %s\nADetect<function> at: %s\nIDetect<functions> at: %s\nKill<function> at: %s\nSend<function> at: %s\nDisconnect<function> at: %s"
+local Debug = true
+
+setreadonly(Mt, false)
+
+for _, Connection in next, getconnections(Context.Error) do
+    Connection:Disable()
+end
+
+local function Lookup(T, A)
+    assert(T == 'function' or T == 'table', 'Expected table/function at args[1].')
+    local F = T == 'function'
+    local R
+
+    for _, o in next, getgc(not F) do
+        if ((not F) and type(o) == 'table') or (F and (not is_synapse_function(o) and is_lclosure(o))) then
+            local M = true
+            local C = F and getconstants(o)
+
+            for i, v in next, A do
+                if (M and not ((F and C[i] == v) or ((not F) and rawget(o, v)))) then
+                    M = false
+                end
+            end
+
+            if M then
+                R = o
+                break
+            end
+        end
+    end
+
+    return R
+end
+
+local function string_ret(o, typ)
+    local ret, mt, old_func
+    typ = typ or typeof(o)
+
+    if not (typ == 'table' or typ == 'userdata') then
+        return tostring(o)
+    end
+
+    mt = (getrawmetatable or getmetatable)(o)
+    if not mt then 
+        return tostring(o)
+    end
+
+    old_func = rawget(mt, '__tostring')
+    rawset(mt, '__tostring', nil)
+    ret = tostring(o)
+    rawset(mt, '__tostring', old_func)
+    return ret
+end
+
+local Empty = function() end
+local Client = Lookup('table', {'Core', 'Anti', 'Remote', 'Disconnect'})
+local Detect_A = Lookup('function', { "Speed Exploit", "Jump Exploit", "HipHeight Exploit", "Changing _G's", "Stamina Spoofing", "Inf Jump"})
+local Detect_B = Lookup('function', {'_', 'Detected', 0.5, 'kick'})
+local Detect_C = (not Detect_B) and Lookup('function', {'Detected', 'kick', 'crash'})
+local CMt = getmetatable(Client)
+
+local Send = rawget(rawget(Client, 'Remote'), 'Send')
+local Disconnect = rawget(Client, 'Disconnect')
+local Kill = rawget(Client, 'Kill')
+local CIndex = CMt and rawget(CMt, '__index')
+Detect = Detect_B or Detect_C
+
+if (Debug) then
+    rconsoleprint(Template:format(string_ret(Client), string_ret(CIndex), string_ret(Detect), string_ret(Detect_A), string_ret(Kill), string_ret(Send), string_ret(Disconnect)))
+end
+
+if (Detect) then
+    hookfunc(Detect, function() return true end)
+end
+
+if (Detect_A) then
+	hookfunc(Detect_A, Empty)
+end
+
+if (Disconnect) then
+    hookfunc(Disconnect, Empty)
+end
+
+if (Kill) then
+    hookfunc(Kill, Empty)
+end
+
+if (CIndex) then
+    hookfunc(CIndex, function(_, k) 
+        if (k == 'Kill') then
+            return function() return Empty end
+        end
+    end)
+end
+
+if (Send) then
+    Send = hookfunc(Send, function(...)
+        local Args = {...}
+        if (rawget(Args, 1) == 'Detected') then
+            return
+        end
+        return Send(unpack(Args))
+    end)
+end
+
+hookfunc(Player.Kick, Empty)
+Mt.__namecall = newcclosure(function(self, ...)
+    if (Player == self and getnamecallmethod() == 'Kick') then
+        return
+    end
+
+    return __namecall(self, ...)
+end)
+
+setreadonly(Mt, true)
